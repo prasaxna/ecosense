@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>EcoSense – AI Idle Device Detector</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg: #0a0f0a;
+    --surface: #111811;
+    --card: #141f14;
+    --border: #1e301e;
+    --green: #3dff6e;
+    --green-dim: #1a4a25;
+    --amber: #ffb830;
+    --amber-dim: #3d2a00;
+    --red: #ff4d4d;
+    --red-dim: #3d0f0f;
+    --text: #d4f0d4;
+    --muted: #5a7a5a;
+    --font-head: 'Syne', sans-serif;
+    --font-mono: 'Space Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(61,255,110,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(61,255,110,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .glow-orb {
+    position: fixed;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(61,255,110,0.06) 0%, transparent 70%);
+    top: -200px;
+    right: -200px;
+    pointer-events: none;
+    z-index: 0;
+    animation: drift 8s ease-in-out infinite alternate;
+  }
+
+  @keyframes drift {
+    from { transform: translate(0,0); }
+    to { transform: translate(-60px, 80px); }
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  /* Header */
+  header {
+    text-align: center;
+    margin-bottom: 3rem;
+    animation: fadeDown 0.7s ease both;
+  }
+
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .logo-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: var(--green);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    box-shadow: 0 0 24px rgba(61,255,110,0.4);
+  }
+
+  h1 {
+    font-family: var(--font-head);
+    font-size: clamp(1.8rem, 5vw, 2.8rem);
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -1px;
+  }
+
+  h1 span { color: var(--green); }
+
+  .tagline {
+    color: var(--muted);
+    font-size: 0.8rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 0.4rem;
+  }
+
+  /* Status bar */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-bottom: 2.5rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Cards */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .card:nth-child(1) { animation-delay: 0.1s; }
+  .card:nth-child(2) { animation-delay: 0.2s; }
+  .card:nth-child(3) { animation-delay: 0.3s; }
+
+  .card-title {
+    font-family: var(--font-head);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--green);
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .card-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Motion Toggle */
+  .motion-toggle {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .motion-btn {
+    flex: 1;
+    padding: 1rem;
+    border-radius: 10px;
+    border: 2px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .motion-btn .btn-icon { font-size: 1.6rem; }
+
+  .motion-btn.active-yes {
+    border-color: var(--green);
+    background: var(--green-dim);
+    color: var(--green);
+    box-shadow: 0 0 20px rgba(61,255,110,0.15);
+  }
+
+  .motion-btn.active-no {
+    border-color: var(--red);
+    background: var(--red-dim);
+    color: var(--red);
+    box-shadow: 0 0 20px rgba(255,77,77,0.15);
+  }
+
+  /* Sliders */
+  .input-group {
+    margin-bottom: 1.2rem;
+  }
+
+  .input-group:last-child { margin-bottom: 0; }
+
+  .input-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.6rem;
+    font-size: 0.82rem;
+    color: var(--text);
+  }
+
+  .input-label .val {
+    font-weight: 700;
+    color: var(--green);
+    font-size: 0.9rem;
+  }
+
+  input[type="range"] {
+    width: 100%;
+    appearance: none;
+    height: 4px;
+    background: var(--border);
+    border-radius: 4px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 12px rgba(61,255,110,0.6);
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+  }
+
+  input[type="range"]:hover::-webkit-slider-thumb {
+    box-shadow: 0 0 20px rgba(61,255,110,0.8);
+  }
+
+  .input-sublabel {
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 0.3rem;
+  }
+
+  /* Analyze button */
+  .analyze-btn {
+    width: 100%;
+    padding: 1.1rem;
+    background: var(--green);
+    color: #000;
+    border: none;
+    border-radius: 12px;
+    font-family: var(--font-head);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    margin: 1.5rem 0;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 24px rgba(61,255,110,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    animation: fadeUp 0.6s 0.4s ease both;
+  }
+
+  .analyze-btn:hover {
+    background: #5fffaa;
+    box-shadow: 0 6px 32px rgba(61,255,110,0.5);
+    transform: translateY(-2px);
+  }
+
+  .analyze-btn:active { transform: translateY(0); }
+
+  /* Results Panel */
+  #results {
+    display: none;
+    animation: slideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: scale(0.95) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  #results.show { display: block; }
+
+  .result-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .result-status-icon {
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+  }
+
+  .result-status-icon.safe { background: var(--green-dim); }
+  .result-status-icon.warn { background: var(--amber-dim); }
+
+  .result-status-text { font-family: var(--font-head); font-size: 1rem; font-weight: 700; }
+  .result-status-sub { font-size: 0.72rem; color: var(--muted); margin-top: 0.1rem; }
+
+  /* Alert items */
+  .alert-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.9rem 1rem;
+    border-radius: 10px;
+    margin-bottom: 0.75rem;
+    border: 1px solid;
+    font-size: 0.82rem;
+    line-height: 1.5;
+  }
+
+  .alert-item.danger {
+    background: var(--red-dim);
+    border-color: rgba(255,77,77,0.3);
+    color: #ff9090;
+  }
+
+  .alert-item.warning {
+    background: var(--amber-dim);
+    border-color: rgba(255,184,48,0.3);
+    color: #ffd080;
+  }
+
+  .alert-item.ok {
+    background: var(--green-dim);
+    border-color: rgba(61,255,110,0.25);
+    color: #80e880;
+  }
+
+  .alert-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+
+  /* Energy savings estimate */
+  .savings-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin-top: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .savings-number {
+    font-family: var(--font-head);
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--green);
+    white-space: nowrap;
+  }
+
+  .savings-desc { font-size: 0.75rem; color: var(--muted); line-height: 1.5; }
+
+  /* Flow diagram */
+  .flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+    padding: 1rem 0 0.5rem;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+
+  .flow-step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.3rem 0.6rem;
+    white-space: nowrap;
+  }
+
+  .flow-arrow { color: var(--green); font-size: 0.9rem; }
+
+  footer {
+    text-align: center;
+    margin-top: 3rem;
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+<div class="glow-orb"></div>
+<div class="container">
+
+  <header>
+    <div class="logo-row">
+      <div class="logo-icon">🌿</div>
+      <h1>Eco<span>Sense</span></h1>
+    </div>
+    <p class="tagline">AI Idle Device Detection System</p>
+  </header>
+
+  <div class="status-bar">
+    <div class="dot"></div>
+    System Online · Real-time Analysis
+  </div>
+
+  <!-- Motion Card -->
+  <div class="card">
+    <div class="card-title">01 · Motion Detection</div>
+    <div class="motion-toggle">
+      <button class="motion-btn active-yes" id="btn-yes" onclick="setMotion('yes')">
+        <span class="btn-icon">🧑</span>
+        Motion Detected
+      </button>
+      <button class="motion-btn" id="btn-no" onclick="setMotion('no')">
+        <span class="btn-icon">🚪</span>
+        Room Empty
+      </button>
+    </div>
+  </div>
+
+  <!-- Devices Card -->
+  <div class="card">
+    <div class="card-title">02 · Device Power Usage</div>
+
+    <div class="input-group">
+      <div class="input-label">
+        🌀 Fan Power
+        <span class="val" id="fan-val">70 W</span>
+      </div>
+      <input type="range" id="fan" min="0" max="150" value="70" oninput="updateVal('fan','fan-val','W')">
+      <div class="input-sublabel">Typical ceiling fan: 60–80 W</div>
+    </div>
+
+    <div class="input-group">
+      <div class="input-label">
+        💻 Laptop Charger
+        <span class="val" id="charger-val">45 W</span>
+      </div>
+      <input type="range" id="charger" min="0" max="150" value="45" oninput="updateVal('charger','charger-val','W')">
+      <div class="input-sublabel">Typical laptop charger: 45–90 W</div>
+    </div>
+
+    <div class="input-group">
+      <div class="input-label">
+        💡 Lights
+        <span class="val" id="lights-val">40 W</span>
+      </div>
+      <input type="range" id="lights" min="0" max="200" value="40" oninput="updateVal('lights','lights-val','W')">
+      <div class="input-sublabel">LED bulb: 10 W · Tube light: 40 W</div>
+    </div>
+  </div>
+
+  <!-- Idle Time Card -->
+  <div class="card">
+    <div class="card-title">03 · Idle Duration</div>
+    <div class="input-group">
+      <div class="input-label">
+        ⏱ Idle Time
+        <span class="val" id="idle-val">10 min</span>
+      </div>
+      <input type="range" id="idle" min="0" max="120" value="10" oninput="updateVal('idle','idle-val','min')">
+      <div class="input-sublabel">How long the room has been unoccupied</div>
+    </div>
+  </div>
+
+  <!-- Flow Diagram -->
+  <div class="flow">
+    <div class="flow-step">📥 Device Data</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">🧠 AI Logic</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">🔍 Idle Check</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">⚡ Alert</div>
+  </div>
+
+  <button class="analyze-btn" onclick="analyze()">
+    ⚡ Run AI Analysis
+  </button>
+
+  <!-- Results -->
+  <div id="results" class="card">
+    <div class="card-title">04 · Analysis Result</div>
+    <div class="result-header">
+      <div class="result-status-icon" id="res-icon">✅</div>
+      <div>
+        <div class="result-status-text" id="res-title">All Clear</div>
+        <div class="result-status-sub" id="res-sub">No idle devices detected</div>
+      </div>
+    </div>
+
+    <div id="alerts-container"></div>
+
+    <div class="savings-bar">
+      <div class="savings-number" id="savings-num">0 W</div>
+      <div class="savings-desc" id="savings-desc">No wasted energy detected.<br>Devices in use — all good!</div>
+    </div>
+  </div>
+
+  <footer>ECOSENSE v1.0 · Hackathon Prototype · AI Idle Device Detection</footer>
+</div>
+
+<script>
+  let motionState = 'yes';
+
+  function setMotion(val) {
+    motionState = val;
+    document.getElementById('btn-yes').className = 'motion-btn' + (val === 'yes' ? ' active-yes' : '');
+    document.getElementById('btn-no').className = 'motion-btn' + (val === 'no' ? ' active-no' : '');
+  }
+
+  function updateVal(id, displayId, unit) {
+    document.getElementById(displayId).textContent = document.getElementById(id).value + ' ' + unit;
+  }
+
+  function analyze() {
+    const fan = parseInt(document.getElementById('fan').value);
+    const charger = parseInt(document.getElementById('charger').value);
+    const lights = parseInt(document.getElementById('lights').value);
+    const idle = parseInt(document.getElementById('idle').value);
+    const motion = motionState;
+
+    const alerts = [];
+    let wastedWatts = 0;
+
+    if (motion === 'no' && fan > 0 && idle > 5) {
+      alerts.push({ type: 'danger', icon: '⚠️', msg: `Fan is running in an empty room at <strong>${fan}W</strong>. Turn it off to save energy.` });
+      wastedWatts += fan;
+    }
+
+    if (charger > 0 && idle > 5) {
+      alerts.push({ type: 'warning', icon: '🔌', msg: `Laptop charger is still plugged in (${charger}W). Unplug it when not charging.` });
+      wastedWatts += charger;
+    }
+
+    if (motion === 'no' && lights > 0 && idle > 5) {
+      alerts.push({ type: 'danger', icon: '💡', msg: `Lights are ON in an empty room (${lights}W). Switch them off!` });
+      wastedWatts += lights;
+    }
+
+    if (motion === 'yes') {
+      alerts.push({ type: 'ok', icon: '✅', msg: 'Room is occupied. Devices are being used normally.' });
+    }
+
+    if (alerts.length === 0 || (motion === 'no' && fan === 0 && charger === 0 && lights === 0)) {
+      alerts.push({ type: 'ok', icon: '✅', msg: 'No idle devices detected. Energy usage looks good!' });
+    }
+
+    // Render
+    const res = document.getElementById('results');
+    const icon = document.getElementById('res-icon');
+    const title = document.getElementById('res-title');
+    const sub = document.getElementById('res-sub');
+    const container = document.getElementById('alerts-container');
+
+    container.innerHTML = alerts.map(a =>
+      `<div class="alert-item ${a.type}"><span class="alert-icon">${a.icon}</span><span>${a.msg}</span></div>`
+    ).join('');
+
+    const estSavingsHr = (wastedWatts / 1000).toFixed(3);
+    const estCost = (wastedWatts / 1000 * 0.12).toFixed(4);
+
+    document.getElementById('savings-num').textContent = wastedWatts + ' W';
+    document.getElementById('savings-desc').textContent = wastedWatts > 0
+      ? `Wasted energy detected.\n~${estSavingsHr} kWh/hr · Est. ₹${(estCost * 9).toFixed(3)}/hr wasted`
+      : 'No wasted energy detected.\nDevices in use — all good!';
+
+    if (wastedWatts > 0) {
+      icon.textContent = '⚠️';
+      icon.className = 'result-status-icon warn';
+      title.textContent = 'Idle Devices Detected!';
+      sub.textContent = `${alerts.filter(a => a.type !== 'ok').length} issue(s) found · Take action now`;
+    } else {
+      icon.textContent = '✅';
+      icon.className = 'result-status-icon safe';
+      title.textContent = 'All Systems Normal';
+      sub.textContent = 'No energy waste detected';
+    }
+
+    res.classList.remove('show');
+    void res.offsetWidth; // reflow for re-animation
+    res.classList.add('show');
+    res.style.display = 'block';
+    res.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+</script>
+</body>
+</html>
